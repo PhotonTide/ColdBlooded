@@ -364,8 +364,34 @@ function animateLoop(){floaters.forEach(f=>{f.y+=f.vy;f.x+=f.vx;if(f.y<-6){f.y=8
 animateLoop();
 setInterval(()=>{if(allTexts.length>0){while(floaters.length<7)spawnRandom();}},2000);
 function updateCount(){const c=document.getElementById('jn-count');if(c&&totalShared>0)c.textContent=`${totalShared} ${totalShared===1?'voice':'voices'}`;}
-function saveEntry(text){try{const saved=localStorage.getItem(STORAGE_KEY);const entries=saved?JSON.parse(saved):[];entries.push({text,ts:Date.now()});if(entries.length>300)entries.splice(0,entries.length-300);localStorage.setItem(STORAGE_KEY,JSON.stringify(entries));buildAllTexts();}catch(e){}}
-const jnObs=new IntersectionObserver(e=>{if(e[0].isIntersecting){buildAllTexts();let delay=400;const count=Math.min(allTexts.length,10);for(let i=0;i<count;i++){setTimeout(()=>spawnRandom(),delay);delay+=250+Math.random()*300;}jnObs.disconnect();}},{threshold:0.1});
+async function saveEntry(text){
+  // Save to Supabase for global persistence
+  try{
+    await fetch('https://nddgvagwwghsljolafbz.supabase.co/rest/v1/voices',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kZGd2YWd3d2doc2xqb2xhZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NzU3NzYsImV4cCI6MjA5NzU1MTc3Nn0.fTiVxX8fDSvbcujej7BW_xiGmpvvzCts7v0abEHOiA8','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kZGd2YWd3d2doc2xqb2xhZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NzU3NzYsImV4cCI6MjA5NzU1MTc3Nn0.fTiVxX8fDSvbcujej7BW_xiGmpvvzCts7v0abEHOiA8','Prefer':'return=minimal'},
+      body:JSON.stringify({text})
+    });
+  }catch(e){}
+  // Also save locally
+  try{const saved=localStorage.getItem(STORAGE_KEY);const entries=saved?JSON.parse(saved):[];entries.push({text,ts:Date.now()});if(entries.length>300)entries.splice(0,entries.length-300);localStorage.setItem(STORAGE_KEY,JSON.stringify(entries));buildAllTexts();}catch(e){}
+}
+
+async function loadGlobalEntries(){
+  try{
+    const resp=await fetch('https://nddgvagwwghsljolafbz.supabase.co/rest/v1/voices?select=text&order=created_at.desc&limit=200',{
+      headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kZGd2YWd3d2doc2xqb2xhZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NzU3NzYsImV4cCI6MjA5NzU1MTc3Nn0.fTiVxX8fDSvbcujej7BW_xiGmpvvzCts7v0abEHOiA8','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kZGd2YWd3d2doc2xqb2xhZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NzU3NzYsImV4cCI6MjA5NzU1MTc3Nn0.fTiVxX8fDSvbcujej7BW_xiGmpvvzCts7v0abEHOiA8'}
+    });
+    if(resp.ok){
+      const rows=await resp.json();
+      if(rows&&rows.length>0){
+        rows.forEach(r=>{if(!allTexts.includes(r.text))allTexts.push(r.text);});
+        buildAllTexts();
+      }
+    }
+  }catch(e){}
+}
+const jnObs=new IntersectionObserver(e=>{if(e[0].isIntersecting){buildAllTexts();loadGlobalEntries().then(()=>{let delay=400;const count=Math.min(allTexts.length,10);for(let i=0;i<count;i++){setTimeout(()=>spawnRandom(),delay);delay+=250+Math.random()*300;}});jnObs.disconnect();}},{threshold:0.1});
 if(jnSec)jnObs.observe(jnSec);
 const jnInput=document.getElementById('jn-input'),jnShareBtn=document.getElementById('jn-share');
 let submitting=false;
